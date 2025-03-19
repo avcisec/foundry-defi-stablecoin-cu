@@ -41,41 +41,34 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 */
 
 contract DecentralizedStableCoin is ERC20Burnable, Ownable {
-
     error DecentralizedStableCoin__MustBeMoreThanZero();
     error DecentralizedStableCoin__BurnAmountExceedsBalance();
     error DecentralizedStableCoin__CannotMintToZeroAddress();
 
-    constructor() ERC20("DecentralizedStableCoin","SDC") Ownable(msg.sender) {}
+    constructor() ERC20("DecentralizedStableCoin", "SDC") Ownable(msg.sender) {}
 
-
-    function burn(uint256 _amount) public override onlyOwner{
+    function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
         if (_amount <= 0) {
             revert DecentralizedStableCoin__MustBeMoreThanZero();
         }
-        if (balance < _amount ) {
+        if (balance < _amount) {
             revert DecentralizedStableCoin__BurnAmountExceedsBalance();
         }
 
         super.burn(_amount); //Super:  use the burn function from parent class
-        // we can use this if we have a function to override from parent class
+            // we can use this if we have a function to override from parent class
     }
 
-    function mint(address _to, uint256 _amount) external onlyOwner returns(bool) {
+    function mint(address _to, uint256 _amount) external onlyOwner returns (bool) {
         if (_to == address(0)) {
             revert DecentralizedStableCoin__CannotMintToZeroAddress();
         }
-        if ( _amount <= 0) {
+        if (_amount <= 0) {
             revert DecentralizedStableCoin__MustBeMoreThanZero();
         }
 
         _mint(_to, _amount);
         return true;
-
-
     }
-
-
-
 }
