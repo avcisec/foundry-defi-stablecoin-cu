@@ -1,5 +1,33 @@
 // SPDX-License-Identifier: MIT
+
+// Layout of Contract:
+// version
+// imports
+// errors
+// interfaces, libraries, contracts
+// Type declarations
+// State variables
+// Events
+// Modifiers
+// Functions
+
+// Layout of Functions:
+// constructor
+// receive function (if exists)
+// fallback function (if exists)
+// external
+// public
+// internal
+// private
+// view & pure functions
 pragma solidity 0.8.20;
+
+
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                         Imports                            */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
 
 
 
@@ -23,12 +51,85 @@ pragma solidity 0.8.20;
 
 contract DSCEngine {
 
-    function depositCollateralAndMintDsc() external {
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          Errors                            */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    error DSCEngine__CanNotBeZero();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          State Variables                   */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    mapping(address token => address priceFeed) private s_priceFeeds;
+
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          Modifiers                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+
+    modifier amountMoreThanZero(uint256 amount) {
+        if( amount == 0)
+        revert DSCEngine__CanNotBeZero();
+        _;
+    }
+
+    // modifier isAllowedToken(address tokenCollateralAddress) {
+
+    //     if(tokenCollateralAddress !=)
+    //     _;
+    // }
+
+
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          Functions                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    // ETH / USD 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419
+    // BTC / USD 0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c
+
+    constructor() {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      External Functions                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function depositCollateralAndMintDsc() external {}
+
+    /*
+    * @param tokenCollateralAdress is the address of  Token to deposit as collateral.
+    * @param amountCollateral The amount of collateral to deposit as collateral.
+    * 
+    */    
+
+    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral) external amountMoreThanZero(amountCollateral) {
 
     }
+
+    function redeemCollateral() external {}
+
+    function mintDsc() external {}
 
     function redeemCollateralForDsc() external {}
 
     function burnDsc() external {}
+
+    // Threshold to %150
+    // $100 ETH --> $74 ETH  Ethereum fiyati düştüğü için 
+    // $50 DSC
+
+    /*
+   ÖRNEK SENARYO (Threshold to %150)
+   $100 ETH teminat göstererek $50 degerinde DSC borç aldık.
+   **ETH fiyatı düştü ve verdiğimiz teminat değeri $74 oldu. %150 altına düştük.**
+   Bir başka kullanıcı bizim $50 DSC borcumuzu öder ve teminat paramıza çöker.
+    $50 dolar ödedi ve 74 dolar aldı. 24 dolar kazanmış oldu. Biz de liq olduk.
+    */
+ 
+    function liquidate() external {}
+
+    function getHealthFactor() external view {}
 
 }
