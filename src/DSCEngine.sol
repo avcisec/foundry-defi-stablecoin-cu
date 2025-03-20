@@ -58,6 +58,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMustBeEqual();
     error DSCEngine__AddressCanNotBeZero();
     error DSCEngine__CollateralDepositFailed();
+    error DSCEngine__HealthFactorBreaks(uint256 healthFactor);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          State Variables                   */
@@ -65,6 +66,9 @@ contract DSCEngine is ReentrancyGuard {
 
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; // 200% overcollateralized
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1;
 
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
@@ -112,7 +116,7 @@ contract DSCEngine is ReentrancyGuard {
             s_collateralTokens.push(tokenAddresses[i]);
         i_dsc = DecentralizedStableCoin(dscToken);
     }
-
+    }
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                      External Functions                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -192,19 +196,30 @@ contract DSCEngine is ReentrancyGuard {
      * If a user goes below 1, then they can get liquidated.
      * @param user - address of user
      */
-
+    
 
     function _healthfactor(address user) private view returns(uint256){
         // total DSC minted
         // total collateral VALUE
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+        // health factor = CollateralValue / DebtAmount(minted DSC)
+        // 1000 ETH * 50  = 50.000 / 100 = 500
+        // $150 ETH * 50 = 7500 / 100 = 75  (75 / 100) < 1
 
+        // return (collateralValueInUsd / totalDscMinted);
     }
 
 
     function _revertIfHealthFactorIsBroken(address user) internal view{
         // 1. check health factor (do they have enough collateral??)
         // 2. revert if health factor isn't good enough. 
+        uint256 userHealthFactor = _healthfactor(user);
+
+        if (userHealthFactor < MIN_HEALTH_FACTOR ) {
+            revert DSCEngine__HealthFactorBreaks(userHealthFactor);
+        }
 
     }
 
