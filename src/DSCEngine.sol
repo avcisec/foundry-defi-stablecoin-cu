@@ -59,6 +59,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__AddressCanNotBeZero();
     error DSCEngine__CollateralDepositFailed();
     error DSCEngine__HealthFactorBreaks(uint256 healthFactor);
+    error DSCEngine__MintFailed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          State Variables                   */
@@ -156,6 +157,11 @@ contract DSCEngine is ReentrancyGuard {
     function mintDsc(uint256 amountDscToMint) external amountMoreThanZero(amountDscToMint) nonReentrant {
         s_DSCMinted[msg.sender] += amountDscToMint;
         _revertIfHealthFactorIsBroken(msg.sender); // control if they minted too much ($150 DSC --> $100 ETH)
+        
+       bool minted = i_dsc.mint(msg.sender, amountDscToMint);
+       if(!minted) {
+        revert DSCEngine__MintFailed();
+       }
     }
 
     function redeemCollateralForDsc() external {}
