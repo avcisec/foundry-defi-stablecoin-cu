@@ -31,7 +31,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-
 /**
  * @title DSCEngine
  * @author 0xavci
@@ -115,8 +114,8 @@ contract DSCEngine is ReentrancyGuard {
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             s_priceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
             s_collateralTokens.push(tokenAddresses[i]);
-        i_dsc = DecentralizedStableCoin(dscToken);
-    }
+            i_dsc = DecentralizedStableCoin(dscToken);
+        }
     }
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                      External Functions                    */
@@ -139,7 +138,7 @@ contract DSCEngine is ReentrancyGuard {
         nonReentrant
     {
         s_collateralDeposited[msg.sender][tokenCollateralAddress] += amountCollateral;
-        // state güncelledikten sonra event deklare ederiz. 
+        // state güncelledikten sonra event deklare ederiz.
         emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
         bool success = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
         if (!success) {
@@ -157,11 +156,11 @@ contract DSCEngine is ReentrancyGuard {
     function mintDsc(uint256 amountDscToMint) external amountMoreThanZero(amountDscToMint) nonReentrant {
         s_DSCMinted[msg.sender] += amountDscToMint;
         _revertIfHealthFactorIsBroken(msg.sender); // control if they minted too much ($150 DSC --> $100 ETH)
-        
-       bool minted = i_dsc.mint(msg.sender, amountDscToMint);
-       if(!minted) {
-        revert DSCEngine__MintFailed();
-       }
+
+        bool minted = i_dsc.mint(msg.sender, amountDscToMint);
+        if (!minted) {
+            revert DSCEngine__MintFailed();
+        }
     }
 
     function redeemCollateralForDsc() external {}
@@ -184,27 +183,26 @@ contract DSCEngine is ReentrancyGuard {
 
     function getHealthFactor() external view {}
 
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*               Private & Internal view Functions            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-
-    function _getAccountInformation(address user) private view returns(uint256 totalDscMinted,uint256 collateralValueInUsd){
+    function _getAccountInformation(address user)
+        private
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
         totalDscMinted = s_DSCMinted[user];
         collateralValueInUsd = getAccountCollateralValueInUsd(user);
-
     }
-
 
     /*
      * Returns how close to liquidation a user is
      * If a user goes below 1, then they can get liquidated.
      * @param user - address of user
      */
-    
 
-    function _healthfactor(address user) private view returns(uint256){
+    function _healthfactor(address user) private view returns (uint256) {
         // total DSC minted
         // total collateral VALUE
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
@@ -217,44 +215,37 @@ contract DSCEngine is ReentrancyGuard {
         // return (collateralValueInUsd / totalDscMinted);
     }
 
-
-    function _revertIfHealthFactorIsBroken(address user) internal view{
+    function _revertIfHealthFactorIsBroken(address user) internal view {
         // 1. check health factor (do they have enough collateral??)
-        // 2. revert if health factor isn't good enough. 
+        // 2. revert if health factor isn't good enough.
         uint256 userHealthFactor = _healthfactor(user);
 
-        if (userHealthFactor < MIN_HEALTH_FACTOR ) {
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
             revert DSCEngine__HealthFactorBreaks(userHealthFactor);
         }
-
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*               Public & External view Functions             */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-
-    function getAccountCollateralValueInUsd(address user) public view returns(uint256 totalCollateralValueInUsd) {
-        // loop through each collateral token, get the amount they have deposited, and map it to 
+    function getAccountCollateralValueInUsd(address user) public view returns (uint256 totalCollateralValueInUsd) {
+        // loop through each collateral token, get the amount they have deposited, and map it to
         // the price, to get the USD value
-        for(uint256 i = 0; i < s_collateralTokens.length; i++) {
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
             uint256 amount = s_collateralDeposited[user][token];
             totalCollateralValueInUsd += getUsdValue(token, amount);
         }
 
         return totalCollateralValueInUsd;
-
     }
 
-    function getUsdValue(address token, uint256 amount) public view returns(uint256) {
+    function getUsdValue(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (,int256 price,,,) = priceFeed.latestRoundData();
-        // 1 eth = 1000$ 
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        // 1 eth = 1000$
         // returned value from chainlink will be 1000 * 1e8
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
-
-
-
 }
