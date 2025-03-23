@@ -59,6 +59,8 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__CollateralDepositFailed();
     error DSCEngine__HealthFactorBreaks(uint256 healthFactor);
     error DSCEngine__MintFailed();
+    error DSCEngine__TransferFailed();
+    error DSCEngine__BurnFailed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          State Variables                   */
@@ -82,6 +84,9 @@ contract DSCEngine is ReentrancyGuard {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     event CollateralDeposited(address indexed user, address indexed collateralToken, uint256 indexed amount);
+    event CollateralRedeemed(
+        address indexed user, uint256 indexed amountCollateral, address indexed tokenCollateralAddress
+    );
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          Modifiers                         */
@@ -121,7 +126,6 @@ contract DSCEngine is ReentrancyGuard {
     /*                      External Functions                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-
     /*
      * @param tokenCollateraladdress is the address of Token to deposit as collateral.
      * @param amountCollateral The amount of collateral to deposit as collateral.
@@ -160,7 +164,41 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateral() external {}
+
+    /*
+     * @param tokenCollateralAddress is the address of Token to redeem as collateral.
+     * @param amountCollateral The amount of collateral to redeem as collateral.
+     * @param amountDscToBurn The amount of DSC token to burn.
+     * @notice This function will burn DSC and redeem collateral token in one transaction.
+     */
+    function redeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn) external {
+
+        burnDsc(amountDscToBurn);
+        redeemCollateral(tokenCollateralAddress, amountCollateral);
+        // redeemCollateral already checks health factor
+
+    }
+
+    // to redeem collateral;
+    // 1. health factor must be over 1 after collateral pulled
+    // DRY: Don't repeat yourself
+    // burada CEI ihlali yapacagiz. Cunku transfer sonrasi healthfactoru kontrol etmemiz gerekiyor.
+    // calculateHealthFactorAfter() gibi bir fonksiyon yazsaydik gas inefficient olurdu. Bazen CEI
+    // ihlal etmek sorun olmayabilir. ANCAK sadece ne yaptigini biliyorsan bu sekilde yapmalisin.
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+        public
+        amountMoreThanZero(amountCollateral)
+        nonReentrant
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(msg.sender, amountCollateral, tokenCollateralAddress);
+
+        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     /*
     * @notice follows CEI
@@ -177,9 +215,15 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateralForDsc() external {}
-
-    function burnDsc() external {}
+    function burnDsc(uint256 amountDscToBurn) public amountMoreThanZero(amountDscToBurn) {
+        s_DSCMinted[msg.sender] -= amountDscToBurn;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), amountDscToBurn);
+        if (!success) {
+            revert DSCEngine__BurnFailed();
+        }
+        i_dsc.burn(amountDscToBurn);
+        _revertIfHealthFactorIsBroken(msg.sender); // this line will not hit.
+    }
 
     // Threshold to %150
     // $100 ETH --> $74 ETH  Ethereum fiyati düştüğü için
