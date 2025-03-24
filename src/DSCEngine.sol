@@ -62,6 +62,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__TransferFailed();
     error DSCEngine__BurnFailed();
     error DSCEngine__HealthFactorOk();
+    error DSCEngine__HealthFactorNotImproved();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          State Variables                   */
@@ -270,7 +271,12 @@ contract DSCEngine is ReentrancyGuard {
 
         uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
         _redeemCollateral(tokenCollateralAddress, totalCollateralToRedeem, undercollateralizedUser, msg.sender);
-
+                _burnDsc(debtToCover, undercollateralizedUser, msg.sender);
+        uint256 endingUserHealthFactor = _healthfactor(undercollateralizedUser);
+        if (endingUserHealthFactor <= userHealthFactor) {
+            revert DSCEngine__HealthFactorNotImproved();
+        }
+        _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     function getHealthFactor() external view {}
