@@ -212,12 +212,7 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     function burnDsc(uint256 amountDscToBurn) public amountMoreThanZero(amountDscToBurn) {
-        s_DSCMinted[msg.sender] -= amountDscToBurn;
-        bool success = i_dsc.transferFrom(msg.sender, address(this), amountDscToBurn);
-        if (!success) {
-            revert DSCEngine__BurnFailed();
-        }
-        i_dsc.burn(amountDscToBurn);
+        _burnDsc(amountDscToBurn, msg.sender, msg.sender);
         _revertIfHealthFactorIsBroken(msg.sender); // this line will not hit.
     }
 
@@ -274,7 +269,7 @@ contract DSCEngine is ReentrancyGuard {
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
 
         uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
-
+        _redeemCollateral(tokenCollateralAddress, totalCollateralToRedeem, undercollateralizedUser, msg.sender);
 
     }
 
@@ -283,6 +278,23 @@ contract DSCEngine is ReentrancyGuard {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*               Private & Internal view Functions            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /***
+     * @dev low-level internal function, do not call unless the function calling it is
+     * checking for health factors being broken
+     * @param amountDscToBurn Amount of DSC to burn 
+     * @param onBehalfOf 
+     * @param dscFrom 
+     */
+
+    function _burnDsc(uint256 amountDscToBurn, address onBehalfOf, address dscFrom) private {
+                s_DSCMinted[onBehalfOf] -= amountDscToBurn;
+        bool success = i_dsc.transferFrom(dscFrom, address(this), amountDscToBurn);
+        if (!success) {
+            revert DSCEngine__BurnFailed();
+        }
+        i_dsc.burn(amountDscToBurn);
+    }
 
     function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to) internal {
                 s_collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
