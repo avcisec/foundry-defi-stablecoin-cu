@@ -15,7 +15,9 @@ contract DSCEngineTest is Test {
     DSCEngine engine;
     HelperConfig config;
     address ethUsdPriceFeed;
+    address btcUsdPriceFeed;
     address weth;
+    address wbtc;
     address user1 = makeAddr("user1");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
@@ -23,8 +25,29 @@ contract DSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployDSC();
         (dsc, engine, config) = deployer.run();
-        (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
         ERC20Mock(weth).mint(user1, STARTING_ERC20_BALANCE);
+    }
+
+    /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
+    /*   Constructor Tests       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.°.•*/
+
+    address[] public priceFeedAddresses;
+    address[] public tokenAddresses;
+
+    function testRevertIfTokenLengthDoesntMatchPriceFeedLength() public {
+        tokenAddresses.push(weth);
+        priceFeedAddresses.push(ethUsdPriceFeed);
+        priceFeedAddresses.push(btcUsdPriceFeed);
+
+        vm.expectRevert(DSCEngine.DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMustBeEqual.selector);
+
+        new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsc));
+
+        // uint256 tokenAddressLength = tokenAddresses.length;
+        // uint256 priceFeedAddressLength = priceFeedAddresses.length;
+        // assert(tokenAddressLength == priceFeedAddressLength);
     }
 
     /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
@@ -40,6 +63,14 @@ contract DSCEngineTest is Test {
         assertEq(expectedUsd, actualUsd);
     }
 
+    function test_getTokenAmountFromUsd() public {
+        uint256 usdAmount = 100 ether;
+        uint256 expectedWeth = 0.05 ether;
+        uint256 actualWeth = engine.getTokenAmountFromUsd(weth, usdAmount);
+
+        assertEq(expectedWeth, actualWeth);
+    }
+
     /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
     /*  DepositCollateral Tests  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.°.•*/
@@ -50,4 +81,35 @@ contract DSCEngineTest is Test {
         vm.expectRevert(DSCEngine.DSCEngine__CanNotBeZero.selector);
         engine.depositCollateral(weth, 0);
     }
+
+    function testRevertsWithUnapprovedCollateral() public {
+         ERC20Mock RandomToken = new ERC20Mock();
+         RandomToken.mint(user1, AMOUNT_COLLATERAL);
+        vm.startPrank(user1);
+        vm.expectRevert(DSCEngine.DSCEngine__NotAllowedToken.selector);
+        engine.depositCollateral(address(RandomToken), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+    }
+
+    modifier depositedCollateral() {
+        vm.startPrank(user1);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    // function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral { 
+    //     (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(user1);
+
+    //     uint256 expectedTotalDscMinted = 0;
+    //     uint256 expectedCollateralValueInUsd = engine.getUsdValue(weth, AMOUNT_COLLATERAL);
+
+
+    //     console.log("totalDscMinted", totalDscMinted);
+    //     console.log("expectedTotalDscMinted", expectedTotalDscMinted);
+    //     // assertEq(totalDscMinted, expectedTotalDscMinted);
+    //     // assertEq(collateralValueInUsd,expectedCollateralValueInUsd);
+    // }
 }

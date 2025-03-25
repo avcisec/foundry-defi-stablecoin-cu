@@ -55,7 +55,7 @@ contract DSCEngine is ReentrancyGuard {
 
     error DSCEngine__CanNotBeZero();
     error DSCEngine__TokenAddressesAndPriceFeedAddressesLengthMustBeEqual();
-    error DSCEngine__AddressCanNotBeZero();
+    error DSCEngine__NotAllowedToken();
     error DSCEngine__CollateralDepositFailed();
     error DSCEngine__HealthFactorBreaks(uint256 healthFactor);
     error DSCEngine__MintFailed();
@@ -105,7 +105,7 @@ contract DSCEngine is ReentrancyGuard {
 
     modifier isAllowedToken(address tokenCollateralAddress) {
         if (s_priceFeeds[tokenCollateralAddress] == address(0)) {
-            revert DSCEngine__AddressCanNotBeZero();
+            revert DSCEngine__NotAllowedToken();
         }
         _;
     }
@@ -291,6 +291,7 @@ contract DSCEngine is ReentrancyGuard {
 
     /***
      *
+     *
      * @dev low-level internal function, do not call unless the function calling it is
      * checking for health factors being broken
      * @param amountDscToBurn Amount of DSC to burn
@@ -389,5 +390,9 @@ contract DSCEngine is ReentrancyGuard {
         // 1 eth = 1000$
         // returned value from chainlink will be 1000 * 1e8
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
+
+    function getAccountInformation(address user) external view returns(uint256 totalDscMinted, uint256 collateralValueInUsd) {
+        (totalDscMinted, collateralValueInUsd) = _getAccountInformation(user);
     }
 }
