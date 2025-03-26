@@ -14,19 +14,23 @@ contract DSCEngineTest is Test {
     DecentralizedStableCoin dsc;
     DSCEngine engine;
     HelperConfig config;
-    address ethUsdPriceFeed;
-    address btcUsdPriceFeed;
-    address weth;
-    address wbtc;
+    address public ethUsdPriceFeed;
+    address public btcUsdPriceFeed;
+    address public weth;
+    address public wbtc;
+    uint256 public deployerKey;
     address user1 = makeAddr("user1");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
+    uint256 public constant USER_STARTING_BALANCE = 10 ether;
 
     function setUp() public {
         deployer = new DeployDSC();
         (dsc, engine, config) = deployer.run();
-        (ethUsdPriceFeed, btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth, wbtc, deployerKey) = config.activeNetworkConfig();
         ERC20Mock(weth).mint(user1, STARTING_ERC20_BALANCE);
+        ERC20Mock(wbtc).mint(user1, STARTING_ERC20_BALANCE);
+
     }
 
     /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
@@ -100,16 +104,13 @@ contract DSCEngineTest is Test {
         _;
     }
 
-    // function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral { 
-    //     (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(user1);
+    function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral { 
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(user1);
 
-    //     uint256 expectedTotalDscMinted = 0;
-    //     uint256 expectedCollateralValueInUsd = engine.getUsdValue(weth, AMOUNT_COLLATERAL);
+        uint256 expectedTotalDscMinted = 0;
+        uint256 expectedDepositAmount = engine.getTokenAmountFromUsd(weth, collateralValueInUsd);
 
-
-    //     console.log("totalDscMinted", totalDscMinted);
-    //     console.log("expectedTotalDscMinted", expectedTotalDscMinted);
-    //     // assertEq(totalDscMinted, expectedTotalDscMinted);
-    //     // assertEq(collateralValueInUsd,expectedCollateralValueInUsd);
-    // }
+        assertEq(totalDscMinted, expectedTotalDscMinted);
+        assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
+    }
 }

@@ -56,7 +56,7 @@ contract HelperConfig is Script {
 
         return NetworkConfig({
             wethUsdPriceFeed: address(ethUsdPriceFeed),
-            wbtcUsdPriceFeed: address(wbtcMock),
+            wbtcUsdPriceFeed: address(btcUsdPriceFeed),
             weth: address(wethMock),
             wbtc: address(wbtcMock),
             deployerKey: DEFAULT_ANVIL_KEY
