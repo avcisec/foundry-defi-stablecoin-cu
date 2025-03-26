@@ -21,6 +21,7 @@ contract DSCEngineTest is Test {
     uint256 public deployerKey;
     address user1 = makeAddr("user1");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
+    uint256 public constant AMOUNT_DSC = 5 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
     uint256 public constant USER_STARTING_BALANCE = 10 ether;
 
@@ -96,11 +97,26 @@ contract DSCEngineTest is Test {
 
     }
 
+    function testStateUpdatesAfterDeposit() public depositedCollateral {
+        uint256 expectedDepositAmount = engine.getCollateralDeposited(user1,weth);
+        assertEq(expectedDepositAmount, AMOUNT_COLLATERAL);
+    }
+
+// forge test coverage --report debug --lcov-version 1
     modifier depositedCollateral() {
         vm.startPrank(user1);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
         engine.depositCollateral(weth, AMOUNT_COLLATERAL);
         vm.stopPrank();
+        _;
+    }
+
+        modifier depositedCollateralAndMintedDsc() {
+        vm.startPrank(user1);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_DSC);
+        vm.stopPrank();
+        
         _;
     }
 
@@ -113,4 +129,60 @@ contract DSCEngineTest is Test {
         assertEq(totalDscMinted, expectedTotalDscMinted);
         assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
     }
+
+        function testDepositCollateralAndMintDsc() public depositedCollateralAndMintedDsc {
+        uint256 totalDscMinted = engine.getDscMinted(user1);
+        uint256 totalCollateralDeposited = engine.getCollateralDeposited(user1, weth);
+
+        console.log("totalDscMinted:",totalDscMinted);
+        console.log("totalCollateralDeposited", totalCollateralDeposited);
+
+        assert(totalDscMinted > 0);
+        assert(totalCollateralDeposited > 0);
+        assert(totalDscMinted * 2 == totalCollateralDeposited);
+    }
+
+
+    /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
+    /*  RedeemCollateral Tests   */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.°.•*/
+
+    function testRevertIfRedeemZeroCollateral() public depositedCollateral {
+        vm.startPrank(user1);
+        dsc.approve(address(engine), 1);
+        vm.expectRevert(DSCEngine.DSCEngine__CanNotBeZero.selector);
+        engine.redeemCollateral(weth, 0);
+    }
+
+
+
+    function testRedeemCollateralAfterDepositedCollateralAndMintedDsc() public depositedCollateralAndMintedDsc {
+        uint256 totalDscMinted = engine.getDscMinted(user1);
+        uint256 totalCollateralDeposited = engine.getCollateralDeposited(user1, weth);
+        vm.startPrank(user1);
+        vm.expectRevert();
+        engine.redeemCollateral(weth,AMOUNT_COLLATERAL);
+    }
+
+        function testBurnOneDscToRedeemAll() public depositedCollateralAndMintedDsc{
+        vm.startPrank(user1);
+        dsc.approve(address(engine), 1);
+        vm.expectRevert();
+        engine.redeemCollateralForDsc(weth, AMOUNT_COLLATERAL, 1);
+        vm.stopPrank();
+
+    }
+
+    function testBurnAllDscToRedeemAllCollateral() public depositedCollateralAndMintedDsc{
+        vm.startPrank(user1);
+        dsc.approve(address(engine), AMOUNT_DSC);
+        vm.expectRevert();
+        engine.redeemCollateralForDsc(weth, AMOUNT_COLLATERAL, AMOUNT_DSC);
+        vm.stopPrank();
+
+    }
+
+
+    
+
 }

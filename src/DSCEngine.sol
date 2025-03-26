@@ -175,6 +175,8 @@ contract DSCEngine is ReentrancyGuard {
      * @param amountCollateral The amount of collateral to redeem as collateral.
      * @param amountDscToBurn The amount of DSC token to burn.
      * @notice This function will burn DSC and redeem collateral token in one transaction.
+     * @audit high After burning dsc and redeeming all the collateral, healthFactor tries to 0 / 0 and reverts.
+     * Because of this, function doesn't work.
      */
     function redeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn)
         external
@@ -396,4 +398,14 @@ contract DSCEngine is ReentrancyGuard {
     function getAccountInformation(address user) external view returns(uint256 totalDscMinted, uint256 collateralValueInUsd) {
         return _getAccountInformation(user);
     }
+
+    function getCollateralDeposited(address user, address collateralAddress) public view returns (uint256) {
+        return s_collateralDeposited[user][collateralAddress];
+    }
+
+    function getDscMinted(address user) external view returns(uint256 totalDscMinted) {
+        return s_DSCMinted[user];
+    }
+
+
 }
