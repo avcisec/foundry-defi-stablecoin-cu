@@ -293,7 +293,6 @@ contract DSCEngine is ReentrancyGuard {
 
     /***
      *
-     *
      * @dev low-level internal function, do not call unless the function calling it is
      * checking for health factors being broken
      * @param amountDscToBurn Amount of DSC to burn
@@ -395,7 +394,11 @@ contract DSCEngine is ReentrancyGuard {
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
 
-    function getAccountInformation(address user) external view returns(uint256 totalDscMinted, uint256 collateralValueInUsd) {
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
         return _getAccountInformation(user);
     }
 
@@ -403,9 +406,7 @@ contract DSCEngine is ReentrancyGuard {
         return s_collateralDeposited[user][collateralAddress];
     }
 
-    function getDscMinted(address user) external view returns(uint256 totalDscMinted) {
+    function getDscMinted(address user) external view returns (uint256 totalDscMinted) {
         return s_DSCMinted[user];
     }
-
-
 }

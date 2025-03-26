@@ -152,9 +152,8 @@ contract DSCEngineTest is Test {
         dsc.approve(address(engine), 1);
         vm.expectRevert(DSCEngine.DSCEngine__CanNotBeZero.selector);
         engine.redeemCollateral(weth, 0);
+        vm.stopPrank();
     }
-
-
 
     function testRedeemCollateralAfterDepositedCollateralAndMintedDsc() public depositedCollateralAndMintedDsc {
         uint256 totalDscMinted = engine.getDscMinted(user1);
@@ -162,6 +161,7 @@ contract DSCEngineTest is Test {
         vm.startPrank(user1);
         vm.expectRevert();
         engine.redeemCollateral(weth,AMOUNT_COLLATERAL);
+        vm.stopPrank();
     }
 
         function testBurnOneDscToRedeemAll() public depositedCollateralAndMintedDsc{
@@ -181,6 +181,49 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
 
     }
+
+
+    /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
+    /*     Mint and Burn Tests   */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.°.•*/
+
+    function testRevertIfMintZero() public  depositedCollateral {
+        vm.startPrank(user1);
+        vm.expectRevert(DSCEngine.DSCEngine__CanNotBeZero.selector);
+        engine.mintDsc(0);
+        vm.stopPrank();
+    }
+
+    function testMint() public depositedCollateral {
+        vm.startPrank(user1);
+        engine.mintDsc(AMOUNT_DSC);
+        uint256 expectedDscBalance = AMOUNT_DSC;
+        uint256 dscBalance = dsc.balanceOf(user1);
+        assertEq(expectedDscBalance, dscBalance);
+        vm.stopPrank();
+    }
+
+    function testRevertIfBurnZero() public depositedCollateral {
+        vm.startPrank(user1);
+        vm.expectRevert(DSCEngine.DSCEngine__CanNotBeZero.selector);
+        engine.burnDsc(0);
+        vm.stopPrank();
+    }
+
+    function testBurn() public depositedCollateralAndMintedDsc {
+        vm.startPrank(user1);
+        dsc.approve(address(engine),AMOUNT_DSC);
+        engine.burnDsc(4 ether);
+        uint256 DscBalance = dsc.balanceOf(user1);
+        uint256 expectedDscBalance = AMOUNT_DSC - 4 ether;
+        console.log("DscBalance:",DscBalance);
+        console.log("expectedDscBalance",expectedDscBalance);
+        assertEq(DscBalance,expectedDscBalance);
+        vm.stopPrank();
+
+    }
+
+
 
 
     
