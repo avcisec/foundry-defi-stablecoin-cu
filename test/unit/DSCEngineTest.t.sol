@@ -7,7 +7,7 @@ import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -31,7 +31,6 @@ contract DSCEngineTest is Test {
         (ethUsdPriceFeed, btcUsdPriceFeed, weth, wbtc, deployerKey) = config.activeNetworkConfig();
         ERC20Mock(weth).mint(user1, STARTING_ERC20_BALANCE);
         ERC20Mock(wbtc).mint(user1, STARTING_ERC20_BALANCE);
-
     }
 
     /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
@@ -88,21 +87,20 @@ contract DSCEngineTest is Test {
     }
 
     function testRevertsWithUnapprovedCollateral() public {
-         ERC20Mock RandomToken = new ERC20Mock();
-         RandomToken.mint(user1, AMOUNT_COLLATERAL);
+        ERC20Mock RandomToken = new ERC20Mock("randomToken", "RND", msg.sender, 100e8);
+        RandomToken.mint(user1, AMOUNT_COLLATERAL);
         vm.startPrank(user1);
         vm.expectRevert(DSCEngine.DSCEngine__NotAllowedToken.selector);
         engine.depositCollateral(address(RandomToken), AMOUNT_COLLATERAL);
         vm.stopPrank();
-
     }
 
     function testStateUpdatesAfterDeposit() public depositedCollateral {
-        uint256 expectedDepositAmount = engine.getCollateralDeposited(user1,weth);
+        uint256 expectedDepositAmount = engine.getCollateralDeposited(user1, weth);
         assertEq(expectedDepositAmount, AMOUNT_COLLATERAL);
     }
 
-// forge test coverage --report debug --lcov-version 1
+    // forge test coverage --report debug --lcov-version 1
     modifier depositedCollateral() {
         vm.startPrank(user1);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
@@ -111,16 +109,16 @@ contract DSCEngineTest is Test {
         _;
     }
 
-        modifier depositedCollateralAndMintedDsc() {
+    modifier depositedCollateralAndMintedDsc() {
         vm.startPrank(user1);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
         engine.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_DSC);
         vm.stopPrank();
-        
+
         _;
     }
 
-    function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral { 
+    function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(user1);
 
         uint256 expectedTotalDscMinted = 0;
@@ -130,18 +128,17 @@ contract DSCEngineTest is Test {
         assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
     }
 
-        function testDepositCollateralAndMintDsc() public depositedCollateralAndMintedDsc {
+    function testDepositCollateralAndMintDsc() public depositedCollateralAndMintedDsc {
         uint256 totalDscMinted = engine.getDscMinted(user1);
         uint256 totalCollateralDeposited = engine.getCollateralDeposited(user1, weth);
 
-        console.log("totalDscMinted:",totalDscMinted);
+        console.log("totalDscMinted:", totalDscMinted);
         console.log("totalCollateralDeposited", totalCollateralDeposited);
 
         assert(totalDscMinted > 0);
         assert(totalCollateralDeposited > 0);
         assert(totalDscMinted * 2 == totalCollateralDeposited);
     }
-
 
     /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
     /*  RedeemCollateral Tests   */
@@ -160,34 +157,35 @@ contract DSCEngineTest is Test {
         uint256 totalCollateralDeposited = engine.getCollateralDeposited(user1, weth);
         vm.startPrank(user1);
         vm.expectRevert();
-        engine.redeemCollateral(weth,AMOUNT_COLLATERAL);
+        engine.redeemCollateral(weth, AMOUNT_COLLATERAL);
         vm.stopPrank();
     }
 
-        function testBurnOneDscToRedeemAll() public depositedCollateralAndMintedDsc{
+    function testBurnOneDscToRedeemAll() public depositedCollateralAndMintedDsc {
         vm.startPrank(user1);
         dsc.approve(address(engine), 1);
         vm.expectRevert();
         engine.redeemCollateralForDsc(weth, AMOUNT_COLLATERAL, 1);
         vm.stopPrank();
-
     }
 
-    function testBurnAllDscToRedeemAllCollateral() public depositedCollateralAndMintedDsc{
+    function testBurnAllDscToRedeemAllCollateral() public depositedCollateralAndMintedDsc {
         vm.startPrank(user1);
         dsc.approve(address(engine), AMOUNT_DSC);
-        vm.expectRevert();
+        // vm.expectRevert();
+        console.log("Collateral Deposited by user before redeem:", engine.getCollateralDeposited(user1, weth));
+        console.log("Dsc balance of user1 before burn:", dsc.balanceOf(user1));
         engine.redeemCollateralForDsc(weth, AMOUNT_COLLATERAL, AMOUNT_DSC);
+        console.log("Collateral Deposited by user after redeem:", engine.getCollateralDeposited(user1, weth));
+        console.log("Dsc balance of user1 after burn:", dsc.balanceOf(user1));
         vm.stopPrank();
-
     }
-
 
     /*´:.*:˚.°*.˚•´.°:°•.+.*•´.*:*/
     /*     Mint and Burn Tests   */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.°.•*/
 
-    function testRevertIfMintZero() public  depositedCollateral {
+    function testRevertIfMintZero() public depositedCollateral {
         vm.startPrank(user1);
         vm.expectRevert(DSCEngine.DSCEngine__CanNotBeZero.selector);
         engine.mintDsc(0);
@@ -212,20 +210,13 @@ contract DSCEngineTest is Test {
 
     function testBurn() public depositedCollateralAndMintedDsc {
         vm.startPrank(user1);
-        dsc.approve(address(engine),AMOUNT_DSC);
+        dsc.approve(address(engine), AMOUNT_DSC);
         engine.burnDsc(4 ether);
         uint256 DscBalance = dsc.balanceOf(user1);
         uint256 expectedDscBalance = AMOUNT_DSC - 4 ether;
-        console.log("DscBalance:",DscBalance);
-        console.log("expectedDscBalance",expectedDscBalance);
-        assertEq(DscBalance,expectedDscBalance);
+        console.log("DscBalance:", DscBalance);
+        console.log("expectedDscBalance", expectedDscBalance);
+        assertEq(DscBalance, expectedDscBalance);
         vm.stopPrank();
-
     }
-
-
-
-
-    
-
 }

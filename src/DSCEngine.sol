@@ -27,7 +27,7 @@ pragma solidity 0.8.20;
 /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
 import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
@@ -285,15 +285,16 @@ contract DSCEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function getHealthFactor(address user) external view returns (uint256){
-       return _healthfactor(user);
+    function getHealthFactor(address user) external view returns (uint256) {
+        return _healthfactor(user);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*               Private & Internal view Functions            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /***
+    /**
+     *
      *
      * @dev low-level internal function, do not call unless the function calling it is
      * checking for health factors being broken
@@ -341,8 +342,7 @@ contract DSCEngine is ReentrancyGuard {
         // total DSC minted
         // total collateral VALUE
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
-        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
-        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
         // health factor = CollateralValue / DebtAmount(minted DSC)
         // 1000 ETH * 50  = 50.000 / 100 = 500
         // $150 ETH * 50 = 7500 / 100 = 75  (75 / 100) < 1
@@ -364,8 +364,12 @@ contract DSCEngine is ReentrancyGuard {
     /*               Public & External view Functions             */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function calculateHealthFactor(uint256 totalDscMinted, uint256 CollateralValueInUsd) external pure returns (uint256){
-        return _calculateHealthFactor(totalDscMinted,CollateralValueInUsd);
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 CollateralValueInUsd)
+        external
+        pure
+        returns (uint256)
+    {
+        return _calculateHealthFactor(totalDscMinted, CollateralValueInUsd);
     }
 
     function getTokenAmountFromUsd(address CollateralTokenAddress, uint256 usdAmountInWei)
@@ -408,6 +412,14 @@ contract DSCEngine is ReentrancyGuard {
         return _getAccountInformation(user);
     }
 
+    function getCollateralTokens() external view returns (address[] memory) {
+        return s_collateralTokens;
+    }
+
+    function getCollateralBalanceOfUser(address user, address token) external view returns (uint256) {
+        return s_collateralDeposited[user][token];
+    }
+
     function getCollateralDeposited(address user, address collateralAddress) public view returns (uint256) {
         return s_collateralDeposited[user][collateralAddress];
     }
@@ -416,7 +428,11 @@ contract DSCEngine is ReentrancyGuard {
         return s_DSCMinted[user];
     }
 
-    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd) internal pure returns (uint256){
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        internal
+        pure
+        returns (uint256)
+    {
         if (totalDscMinted == 0) return type(uint256).max;
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
