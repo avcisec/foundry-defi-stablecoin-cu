@@ -4,10 +4,12 @@
    
 2. Stability method => algorithmic (decentralized)
    1. People can only mint the stablecoin with enough collateral (coded)
+   
 3. Collateral type => exogenous (crypto) backed by wETH and wBTC price
 
 
+What are our invariants/properties?
 
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                         Errors                             */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+1- DSC token is always 200% overcollateralized.
+
+
