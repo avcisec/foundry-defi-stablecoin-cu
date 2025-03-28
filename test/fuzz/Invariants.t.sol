@@ -49,6 +49,20 @@ contract Invariants is StdInvariant, Test {
         console.log("wethValue", wethValue);
         console.log("wbtcValue", wbtcValue);
         console.log("totalSupply", totalSupply);
+        console.log("Times Mint is called:", handler.timesMintIsCalled());
         assert(wethValue + wbtcValue >= totalSupply);
     }
+
+    // function invariant_gettersShouldNotRevert() public view{
+    //     engine.getAccountCollateralValueInUsd();
+    //     engine.getAccountInformation();
+    //     engine.getCollateralBalanceOfUser();
+    //     engine.getCollateralDeposited();
+    //     engine.getCollateralTokens();
+    //     engine.getDscMinted();
+    //     engine.getHealthFactor();
+    //     engine.getTokenAmountFromUsd();
+    //     engine.getUsdValue();
+
+    // }
 }

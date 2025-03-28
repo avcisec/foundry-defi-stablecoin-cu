@@ -30,6 +30,9 @@ import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {OracleLib} from "./libraries/OracleLib.sol";
+
+
 
 /**
  * @title DSCEngine
@@ -63,6 +66,13 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__BurnFailed();
     error DSCEngine__HealthFactorOk();
     error DSCEngine__HealthFactorNotImproved();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                             Types                          */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    using OracleLib for AggregatorV3Interface;
+
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          State Variables                   */
@@ -293,14 +303,15 @@ contract DSCEngine is ReentrancyGuard {
     /*               Private & Internal view Functions            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /***
+    /**
+     *
      *
      *
      * @dev low-level internal function, do not call unless the function calling it is
      * checking for health factors being broken
      * @param amountDscToBurn Amount of DSC to burn
-     * @param onBehalfOf
-     * @param dscFrom
+     * @param onBehalfOf Address of the user whom token's will be burned.
+     * @param dscFrom Address of the user whom token's will be transfered to burned.
      */
     function _burnDsc(uint256 amountDscToBurn, address onBehalfOf, address dscFrom) private {
         s_DSCMinted[onBehalfOf] -= amountDscToBurn;
@@ -378,7 +389,7 @@ contract DSCEngine is ReentrancyGuard {
         returns (uint256)
     {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[CollateralTokenAddress]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.priceStaleCheckLatestRoundData();
         // ($10e18 * 1e18) / ($2000e8 * 1e10)
         return (usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
     }
@@ -397,7 +408,7 @@ contract DSCEngine is ReentrancyGuard {
 
     function getUsdValue(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.priceStaleCheckLatestRoundData();
         // 1 eth = 1000$
         // returned value from chainlink will be 1000 * 1e8
         // 2000 00 000 000
@@ -414,6 +425,10 @@ contract DSCEngine is ReentrancyGuard {
 
     function getCollateralTokens() external view returns (address[] memory) {
         return s_collateralTokens;
+    }
+
+    function getCollateralPriceFeed(address token) external view returns (address) {
+        return s_priceFeeds[token];
     }
 
     function getCollateralBalanceOfUser(address user, address token) external view returns (uint256) {
